@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Forward Check — Is this forward true?</title>
+  <meta name="description" content="Send any forwarded message, screenshot, voice note, PDF or link. Forward Check verifies it against official sources and fact-checkers and explains the result in your language.">
+  <meta name="theme-color" content="#0c3f40">
+  <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/anek-devanagari-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="shell">
+
+    <aside class="about" id="about" aria-labelledby="about-title">
+      <div class="about-inner">
+        <button class="about-close icon-btn" id="about-close" type="button" data-i18n-aria="close"></button>
+
+        <div class="brand">
+          <img src="img/logo.svg" alt="" width="44" height="44">
+          <div>
+            <div class="brand-name">Forward Check</div>
+            <div class="brand-tag" data-i18n="tagline"></div>
+          </div>
+        </div>
+
+        <h1 class="hero-title" id="about-title" data-i18n="heroTitle"></h1>
+        <p class="hero-body" data-i18n="heroBody"></p>
+
+        <section class="about-block">
+          <h2 data-i18n="how"></h2>
+          <ol class="steps">
+            <li><span class="step-n">1</span><div><strong data-i18n="how1t"></strong><p data-i18n="how1b"></p></div></li>
+            <li><span class="step-n">2</span><div><strong data-i18n="how2t"></strong><p data-i18n="how2b"></p></div></li>
+            <li><span class="step-n">3</span><div><strong data-i18n="how3t"></strong><p data-i18n="how3b"></p></div></li>
+            <li><span class="step-n">4</span><div><strong data-i18n="how4t"></strong><p data-i18n="how4b"></p></div></li>
+          </ol>
+        </section>
+
+        <section class="about-block">
+          <h2 data-i18n="verdictsTitle"></h2>
+          <ul class="legend" id="legend"></ul>
+        </section>
+
+        <section class="about-block">
+          <h2 data-i18n="trusted"></h2>
+          <div class="source-stats" id="source-stats"></div>
+        </section>
+
+        <footer class="about-foot">
+          <div class="sdg">
+            <span>SDG 4</span><span>SDG 9</span><span>SDG 16</span>
+          </div>
+          <div class="powered" id="powered"></div>
+        </footer>
+      </div>
+    </aside>
+
+    <main class="chat">
+      <header class="chat-head">
+        <img class="chat-logo" src="img/logo.svg" alt="" width="38" height="38">
+        <div class="chat-title">
+          <div class="chat-name">Forward Check</div>
+          <div class="chat-tag" data-i18n="tagline"></div>
+          <div class="chat-sub" data-i18n="subtitle"></div>
+        </div>
+        <label class="lang-pick" data-i18n-title="language">
+          <span class="lang-icon" id="lang-icon"></span>
+          <select id="lang" data-i18n-aria="language">
+            <option value="auto">Auto</option>
+            <option value="en">English</option>
+            <option value="hi">हिन्दी</option>
+            <option value="mr">मराठी</option>
+          </select>
+        </label>
+        <button class="icon-btn head-btn" id="clear" type="button" data-i18n-aria="clearChat" data-i18n-title="clearChat"></button>
+        <button class="icon-btn head-btn about-open" id="about-open" type="button" data-i18n-aria="aboutApp" data-i18n-title="aboutApp"></button>
+      </header>
+
+      <div class="thread" id="thread" tabindex="0">
+        <div class="thread-inner" id="messages" role="log" aria-live="polite"></div>
+      </div>
+
+      <div class="drop-hint" id="drop-hint" hidden><div data-i18n="dropHere"></div></div>
+
+      <footer class="composer">
+        <div class="composer-inner">
+          <div class="attachment" id="attachment" hidden></div>
+
+          <div class="compose-row" id="compose-row">
+            <div class="field">
+              <button class="icon-btn field-btn" id="attach" type="button" data-i18n-aria="attach" data-i18n-title="attach"></button>
+              <textarea id="input" rows="1" data-i18n-placeholder="placeholder" data-i18n-aria="placeholder"></textarea>
+            </div>
+            <button class="round-btn" id="mic" type="button" data-i18n-aria="record" data-i18n-title="record"></button>
+            <button class="round-btn" id="send" type="button" hidden data-i18n-aria="send" data-i18n-title="send"></button>
+          </div>
+
+          <div class="record-row" id="record-row" hidden>
+            <button class="icon-btn record-cancel" id="record-cancel" type="button" data-i18n-aria="cancel" data-i18n-title="cancel"></button>
+            <div class="record-status">
+              <span class="record-dot"></span>
+              <span class="record-time" id="record-time">0:00</span>
+              <div class="record-wave" id="record-wave" aria-hidden="true"></div>
+              <span class="record-label" data-i18n="recording"></span>
+            </div>
+            <button class="round-btn" id="record-send" type="button" data-i18n-aria="send" data-i18n-title="send"></button>
+          </div>
+
+          <input type="file" id="file" hidden accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,audio/*,.opus,.ogg,.m4a,.txt">
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <dialog class="sheet" id="share-dialog" aria-labelledby="share-title">
+    <div class="sheet-head">
+      <h2 id="share-title" data-i18n="shareTitle"></h2>
+      <button class="icon-btn" id="share-close" type="button" data-i18n-aria="close"></button>
+    </div>
+    <p class="sheet-hint" data-i18n="shareHint"></p>
+    <div class="share-preview"><canvas id="share-canvas" width="1080" height="1350"></canvas></div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="share-download" type="button"></button>
+      <button class="btn btn-primary" id="share-send" type="button"></button>
+    </div>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

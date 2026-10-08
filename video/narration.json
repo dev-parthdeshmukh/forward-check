@@ -1,0 +1,10 @@
+[
+  {"id": "hook", "text": "Free laptops, miracle cures, urgent deadlines. Our family groups are full of forwards. Which ones are true?"},
+  {"id": "title", "text": "Forward Check finds out."},
+  {"id": "live", "text": "Paste a message. Claude Opus 5.5 pulls out each claim and checks it live, against official sources and fact-checkers."},
+  {"id": "result", "text": "One claim true, one outdated, one false. Each with evidence you can open."},
+  {"id": "image", "text": "Images work too. This real viral poster? False."},
+  {"id": "telegram", "text": "It lives in Telegram too. Forward a message, or just speak. It replies in your language, and reads the answer aloud."},
+  {"id": "trust", "text": "No trusted source? Code withdraws the verdict."},
+  {"id": "end", "text": "Twenty-four out of twenty-four on our test set. Forward Check. Check before you forward."}
+]

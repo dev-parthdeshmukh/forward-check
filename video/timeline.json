@@ -1,0 +1,14 @@
+{
+  "fps": 30,
+  "duration": 58.0,
+  "scenes": {
+    "hook": [0, 8.85],
+    "title": [8.85, 11.2],
+    "web": [11.2, 26.4],
+    "image": [26.4, 32.6],
+    "telegram": [32.6, 44.2],
+    "trust": [44.2, 49.0],
+    "end": [49.0, 58.0]
+  },
+  "voice": {"hook": 0.4, "title": 9.0, "live": 11.3, "result": 20.2, "image": 26.6, "telegram": 33.0, "trust": 44.4, "end": 49.2}
+}

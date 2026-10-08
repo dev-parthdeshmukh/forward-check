@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+data/
+video/build/
+video/forward-check-demo-voice-only.mp4
+docs/ppt-prompt.md
+docs/*.pptx
+docs/*.pdf

@@ -1,0 +1,9 @@
+httpx
+pydantic
+python-dotenv
+fastapi
+uvicorn
+python-multipart
+pypdf
+edge-tts
+pytest

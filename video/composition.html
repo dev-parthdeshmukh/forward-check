@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Forward Check — demo film</title>
+<link rel="stylesheet" href="../web/css/fonts.css">
+<style>
+/* The film is one 1920x1080 stage. Nothing here animates by itself: every frame is drawn from the
+   clock by the script below (renderAt), so it can be shot frame by frame. */
+:root {
+  --brand-950: #05211f; --brand-900: #082e2e; --brand-800: #0c3f40; --brand-700: #125456; --brand-500: #238a87;
+  --mint: #8ce5cb; --paper: #f3eee4; --ink: #14211f; --muted: #5f6d6a;
+  --true: #177a43; --true-bg: #e4f4ea; --false: #c5302b; --false-bg: #fdebe8; --old: #6a41c9; --old-bg: #efe9fb;
+  --partly: #b5600a; --partly-bg: #fcefd9; --unknown: #586470; --unknown-bg: #eaeef1;
+  --font: "Anek Devanagari", "Nirmala UI", "Segoe UI", "Segoe UI Emoji", sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #021312; overflow: hidden; }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--brand-950);
+  font-family: var(--font); color: #fff; -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision; }
+.bg, .bg > * { position: absolute; inset: 0; }
+.glow { inset: auto; border-radius: 50%; filter: blur(120px); }
+.g1 { left: -320px; top: -360px; width: 1300px; height: 1100px; background: #17696a; opacity: .55; }
+.g2 { left: 1100px; top: 520px; width: 1200px; height: 900px; background: #0f5a4c; opacity: .5; }
+.dots { inset: -60px; background-image: radial-gradient(rgba(255,255,255,.085) 1.6px, transparent 1.7px); background-size: 34px 34px; }
+.vig { background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(1,12,11,.72) 100%); }
+
+.scene { position: absolute; inset: 0; opacity: 0; will-change: opacity, transform; }
+.a { position: absolute; opacity: 0; will-change: opacity, transform; }
+.rel { position: relative; }
+.kicker { font-size: 24px; font-weight: 700; letter-spacing: .2em; color: var(--mint); text-transform: uppercase; }
+.h1 { font-size: 96px; line-height: 1.02; font-weight: 800; font-stretch: 88%; letter-spacing: -.01em; }
+.sub { font-size: 34px; line-height: 1.35; font-weight: 400; color: #cfe7e1; }
+.mint { color: var(--mint); }
+svg { display: block; }
+.dot { display: inline-block; width: .22em; height: .22em; border-radius: 50%; background: currentColor; margin: 0 .42em; vertical-align: middle; opacity: .85; }
+
+/* verdict chips */
+.chip { display: inline-flex; align-items: center; gap: 12px; height: 62px; padding: 0 26px 0 12px; border-radius: 999px; font-size: 30px; font-weight: 700;
+  background: #fff; color: var(--c); box-shadow: 0 12px 30px -14px rgba(0,0,0,.6); white-space: nowrap; }
+.chip i { width: 40px; height: 40px; border-radius: 50%; background: var(--c); display: grid; place-items: center; }
+.chip i svg { width: 22px; height: 22px; stroke: #fff; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.c-true { --c: var(--true); } .c-false { --c: var(--false); } .c-old { --c: var(--old); } .c-partly { --c: var(--partly); } .c-unknown { --c: var(--unknown); }
+.chip.sm { height: 48px; font-size: 24px; padding: 0 20px 0 8px; gap: 9px; }
+.chip.sm i { width: 32px; height: 32px; } .chip.sm i svg { width: 17px; height: 17px; }
+
+/* ---------- hook: the forwards ---------- */
+#fwd-wrap { position: absolute; inset: 0; will-change: opacity, transform, filter; }
+.fwd { background: #fff; color: #111b21; border-radius: 6px 26px 26px 26px; padding: 18px 24px 14px; box-shadow: 0 30px 60px -24px rgba(0,0,0,.65), 0 2px 6px rgba(0,0,0,.2); }
+.fwd.mine { background: #d9fdd3; border-radius: 26px 6px 26px 26px; }
+.fwd-tag { display: flex; align-items: center; gap: 8px; font-size: 20px; font-style: italic; color: #667781; margin-bottom: 6px; }
+.fwd-tag svg { width: 24px; height: 24px; fill: #8696a0; }
+.fwd-text { font-size: 28px; line-height: 1.5; }
+.fwd-text b { font-weight: 700; } .fwd-text u { color: #027eb5; text-decoration: none; }
+.fwd-meta { text-align: right; font-size: 18px; color: #667781; margin-top: 4px; }
+.fwd img { display: block; width: 100%; border-radius: 14px; margin-bottom: 10px; }
+.fwd.small .fwd-text { font-size: 23px; } .fwd.small { padding: 14px 20px 10px; }
+.voice { display: flex; align-items: center; gap: 18px; padding: 6px 0 2px; }
+.voice .play { width: 64px; height: 64px; border-radius: 50%; background: #00a884; display: grid; place-items: center; flex: none; }
+.voice .play svg { width: 26px; height: 26px; fill: #fff; margin-left: 4px; }
+.wave { display: flex; align-items: center; gap: 4px; height: 56px; flex: 1; }
+.wave i { width: 5px; border-radius: 3px; background: #9fb0b8; }
+.voice-cap { font-size: 21px; color: #54656f; margin-top: 4px; line-height: 1.45; }
+#hook-scrim { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, rgba(3,24,23,.9) 0%, rgba(3,24,23,.55) 55%, rgba(3,24,23,.2) 100%); opacity: 0; }
+#hook-line { left: 0; top: 400px; width: 1920px; text-align: center; font-size: 178px; font-weight: 800; font-stretch: 84%; letter-spacing: -.015em; line-height: 1; opacity: 1; }
+#hook-line span { display: inline-block; opacity: 0; margin: 0 .09em; will-change: transform, opacity; }
+#hook-over { left: 0; top: 318px; width: 1920px; text-align: center; }
+
+/* ---------- title + end lockup ---------- */
+.lockup { position: absolute; left: 0; width: 1920px; text-align: center; }
+.logo { margin: 0 auto; filter: drop-shadow(0 30px 50px rgba(0,0,0,.5)); }
+.logo path { stroke-dasharray: 1; }
+.wordmark { font-size: 150px; font-weight: 800; font-stretch: 86%; letter-spacing: -.02em; line-height: 1.05; }
+.tagline { font-size: 46px; font-weight: 500; color: var(--mint); }
+#bug { position: absolute; left: 60px; top: 44px; display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 700; opacity: 0; }
+
+/* ---------- footage frames ---------- */
+.window { background: #0b1716; border-radius: 20px; box-shadow: 0 60px 120px -40px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.1); overflow: hidden; }
+.window-bar { height: 46px; background: #10302f; display: flex; align-items: center; gap: 9px; padding: 0 20px; }
+.window-bar b { width: 13px; height: 13px; border-radius: 50%; background: #2c5553; }
+.window-bar > span { margin-left: 22px; height: 28px; padding: 0 18px; border-radius: 14px; background: #0a2423; color: #9fc4bd; font-size: 16px; line-height: 29px; font-weight: 500; }
+.screen { position: relative; overflow: hidden; background: var(--paper); }
+.cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.cam img { display: block; width: 100%; height: 100%; }
+.ptr { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.cursor { position: absolute; left: -4px; top: -3px; width: 30px; height: 30px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.45)); transform-origin: 4px 3px; }
+.ring { position: absolute; border-radius: 50%; border: 3px solid var(--brand-500); opacity: 0; }
+.tapdot { position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%; background: rgba(20,33,31,.28); border: 3px solid rgba(255,255,255,.95);
+  box-shadow: 0 4px 14px rgba(0,0,0,.35); opacity: 0; }
+.phone { background: #0a0f0f; border-radius: 58px; padding: 12px; box-shadow: 0 60px 110px -40px rgba(0,0,0,.9), inset 0 0 0 2px #2a3a39, 0 0 0 1px rgba(255,255,255,.08); }
+.phone .screen { border-radius: 46px; }
+.pill { display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 20px; border-radius: 23px; background: rgba(5,33,31,.92); border: 1.5px solid rgba(140,229,203,.5);
+  color: var(--mint); font-size: 21px; font-weight: 600; white-space: nowrap; box-shadow: 0 14px 30px -12px rgba(0,0,0,.7); }
+.pill svg { width: 20px; height: 20px; fill: var(--mint); }
+
+/* ---------- web scene: the steps ---------- */
+.steps { left: 70px; top: 236px; width: 370px; opacity: 1; }
+.step { position: relative; padding-left: 62px; margin-bottom: 30px; }
+.step-n { position: absolute; left: 0; top: 0; width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(140,229,203,.55); display: grid; place-items: center;
+  font-size: 22px; font-weight: 700; color: var(--mint); }
+.step-n .fill { position: absolute; inset: -2px; border-radius: 50%; background: var(--mint); opacity: 0; }
+.step-n span { position: relative; }
+.step-t { font-size: 34px; font-weight: 700; line-height: 1.25; padding-top: 1px; }
+.step-s { font-size: 23px; line-height: 1.4; color: #bfe0d8; overflow: hidden; }
+.step-s .chip { margin: 10px 8px 0 0; }
+.step::before { content: ""; position: absolute; left: 21px; top: 50px; bottom: -26px; width: 2px; background: rgba(140,229,203,.22); }
+.step:last-child::before { display: none; }
+
+/* ---------- image scene ---------- */
+.formats { display: flex; gap: 12px; flex-wrap: wrap; }
+.fmt { height: 52px; padding: 0 22px; border-radius: 26px; border: 1.5px solid rgba(140,229,203,.4); color: #cfe7e1; font-size: 25px; font-weight: 600; line-height: 50px; }
+.fmt.on { background: var(--mint); color: var(--brand-950); border-color: var(--mint); }
+.poster { background: #fff; padding: 12px; border-radius: 18px; box-shadow: 0 40px 80px -30px rgba(0,0,0,.8); }
+.poster img { display: block; width: 100%; border-radius: 9px; }
+.credit { font-size: 20px; color: #a9cdc5; }
+.stamp { font-size: 112px; font-weight: 800; font-stretch: 84%; color: var(--false); border: 9px solid var(--false); border-radius: 22px; padding: 0 34px; line-height: 1.22; letter-spacing: .04em;
+  background: rgba(253,235,232,.94); box-shadow: 0 24px 50px -18px rgba(0,0,0,.6); }
+
+/* ---------- telegram scene ---------- */
+.points { left: 110px; top: 560px; width: 700px; opacity: 1; }
+.point { position: relative; display: flex; align-items: center; gap: 20px; font-size: 36px; font-weight: 600; margin-bottom: 26px; opacity: 0; }
+.point i { width: 60px; height: 60px; border-radius: 18px; background: rgba(140,229,203,.14); border: 1.5px solid rgba(140,229,203,.4); display: grid; place-items: center; flex: none; }
+.point i svg { width: 30px; height: 30px; stroke: var(--mint); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.point small { display: block; font-size: 24px; font-weight: 400; color: #bfe0d8; }
+.handle { display: inline-flex; align-items: center; gap: 12px; height: 58px; padding: 0 26px 0 20px; border-radius: 29px; background: #2aabee; color: #fff; font-size: 28px; font-weight: 700; }
+.handle svg { width: 28px; height: 28px; fill: #fff; }
+
+/* ---------- trust scene ---------- */
+.card { background: rgba(255,255,255,.07); border: 1.5px solid rgba(140,229,203,.28); border-radius: 30px; padding: 30px 34px; backdrop-filter: blur(4px); }
+.card h3 { font-size: 24px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--mint); margin-bottom: 22px; }
+.check-row { position: relative; display: flex; align-items: center; gap: 16px; font-size: 29px; font-weight: 500; margin-bottom: 18px; opacity: 0; }
+.check-row i { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--true); }
+.check-row i.no { background: var(--false); }
+.check-row i svg { width: 22px; height: 22px; stroke: #fff; stroke-width: 3.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.arrow { height: 4px; background: var(--mint); border-radius: 2px; transform-origin: 0 50%; }
+.arrow::after { content: ""; position: absolute; right: -2px; top: -9px; border-left: 16px solid var(--mint); border-top: 11px solid transparent; border-bottom: 11px solid transparent; }
+#strike { position: absolute; left: -8px; right: -8px; top: 50%; height: 5px; margin-top: -2px; background: #14211f; border-radius: 3px; transform-origin: 0 50%; }
+
+/* ---------- end scene ---------- */
+.stat { text-align: center; width: 520px; }
+.stat b { display: block; font-size: 200px; line-height: 1; font-weight: 800; font-stretch: 84%; }
+.stat b .slash { margin: 0 .05em 0 .07em; font-weight: 500; opacity: .55; }
+.stat > span { display: block; font-size: 31px; line-height: 1.35; color: #cfe7e1; margin-top: 8px; }
+.note { font-size: 23px; color: #9fc4bd; }
+.tags { display: flex; gap: 14px; justify-content: center; }
+.tag { height: 50px; padding: 0 22px; border-radius: 25px; border: 1.5px solid rgba(140,229,203,.4); font-size: 24px; font-weight: 600; line-height: 48px; color: #d8eee9; }
+#fade { position: absolute; inset: 0; background: #021312; opacity: 0; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg"><div class="glow g1" id="g1"></div><div class="glow g2" id="g2"></div><div class="dots" id="dots"></div><div class="vig"></div></div>
+
+  <!-- 1. the forwards -->
+  <section class="scene" id="hook">
+    <div id="fwd-wrap">
+      <div class="fwd a" style="left:96px;top:84px;width:560px" data-in=".42" data-rot="-3" data-s=".6" data-ease="back" data-float="7" data-phase="0">
+        <div class="fwd-tag"><svg viewBox="0 0 24 24"><path d="M13 6.5V3l7 6.5-7 6.5v-3.6c-4.2 0-7.3 1.2-9.5 4.1C4.4 12 7 7.6 13 6.5z"/></svg>Forwarded many times</div>
+        <div class="fwd-text" lang="hi">🔥 बड़ी खुशखबरी 🔥 सरकार सभी छात्रों को <b>मुफ्त लैपटॉप</b> दे रही है। अभी रजिस्टर करें: <u>pm-laptop-yojana.xyz</u> आखिरी तारीख कल है 🙏</div>
+        <div class="fwd-meta">9:41 am</div>
+      </div>
+      <div class="fwd a" style="left:730px;top:52px;width:430px" data-in=".86" data-rot="2.5" data-s=".6" data-ease="back" data-float="6" data-phase="1.7">
+        <div class="fwd-tag"><svg viewBox="0 0 24 24"><path d="M13 6.5V3l7 6.5-7 6.5v-3.6c-4.2 0-7.3 1.2-9.5 4.1C4.4 12 7 7.6 13 6.5z"/></svg>Forwarded many times</div>
+        <img src="build/inputs/laptop-forward.jpg" alt="">
+        <div class="fwd-text" style="font-size:24px">Apply before it closes 👆</div>
+        <div class="fwd-meta">9:43 am</div>
+      </div>
+      <div class="fwd a" style="left:1262px;top:560px;width:560px" data-in="1.6" data-rot="-3" data-s=".6" data-ease="back" data-float="6" data-phase="3.1">
+        <div class="fwd-tag"><svg viewBox="0 0 24 24"><path d="M13 6.5V3l7 6.5-7 6.5v-3.6c-4.2 0-7.3 1.2-9.5 4.1C4.4 12 7 7.6 13 6.5z"/></svg>Forwarded many times</div>
+        <div class="fwd-text" lang="mr">डॉक्टरांचा सल्ला: दर 15 मिनिटांनी <b>गरम पाणी</b> प्यायल्याने कोरोना विषाणू घशातच मरतो. हा संदेश सर्वांना पाठवा.</div>
+        <div class="fwd-meta">10:02 am</div>
+      </div>
+      <div class="fwd a" style="left:150px;top:600px;width:500px" data-in="2.0" data-rot="2.5" data-s=".6" data-ease="back" data-float="7" data-phase="4.4">
+        <div class="fwd-tag"><svg viewBox="0 0 24 24"><path d="M13 6.5V3l7 6.5-7 6.5v-3.6c-4.2 0-7.3 1.2-9.5 4.1C4.4 12 7 7.6 13 6.5z"/></svg>Forwarded</div>
+        <div class="voice"><div class="play"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></div><div class="wave" id="hook-wave"></div></div>
+        <div class="voice-cap" lang="hi">“रोज़ सुबह लहसुन खाने से डेंगू ठीक हो जाता है…”</div>
+        <div class="fwd-meta">0:16<span class="dot"></span>10:10 am</div>
+      </div>
+      <div class="fwd a" style="left:1258px;top:104px;width:550px" data-in="2.7" data-rot="3" data-s=".6" data-ease="back" data-float="6" data-phase="2.2">
+        <div class="fwd-tag"><svg viewBox="0 0 24 24"><path d="M13 6.5V3l7 6.5-7 6.5v-3.6c-4.2 0-7.3 1.2-9.5 4.1C4.4 12 7 7.6 13 6.5z"/></svg>Forwarded many times</div>
+        <div class="fwd-text"><b>URGENT!!</b> RBI has withdrawn the 2000 rupee note. Exchange at any bank branch <b>till 30 September</b>, so hurry up.</div>
+        <div class="fwd-meta">10:31 am</div>
+      </div>
+      <div class="fwd a" style="left:716px;top:590px;width:480px" data-in="3.3" data-rot="-2" data-s=".6" data-ease="back" data-float="6" data-phase="5.3">
+        <div class="fwd-tag"><svg viewBox="0 0 24 24"><path d="M13 6.5V3l7 6.5-7 6.5v-3.6c-4.2 0-7.3 1.2-9.5 4.1C4.4 12 7 7.6 13 6.5z"/></svg>Forwarded many times</div>
+        <div class="fwd-text"><b>BREAKING:</b> NASA confirms the Earth will go completely dark for 6 days…</div>
+        <div class="fwd-meta">11:15 am</div>
+      </div>
+      <div class="fwd small mine a" style="left:-40px;top:410px;width:350px" data-in="4.6" data-dur=".45" data-rot="-4" data-s=".5" data-ease="back" data-float="5" data-phase="1"><div class="fwd-text">Free recharge for 3 months!! 📱</div><div class="fwd-meta">11:20 am</div></div>
+      <div class="fwd small a" style="left:1560px;top:420px;width:400px" data-in="4.85" data-dur=".45" data-rot="4" data-s=".5" data-ease="back" data-float="5" data-phase="2"><div class="fwd-text">Bank accounts will be blocked tomorrow ⚠️</div><div class="fwd-meta">11:24 am</div></div>
+      <div class="fwd small a" style="left:420px;top:930px;width:420px" data-in="5.1" data-dur=".45" data-rot="2" data-s=".5" data-ease="back" data-float="5" data-phase="3"><div class="fwd-text">Share with 10 groups and see the magic 🙏</div><div class="fwd-meta">11:30 am</div></div>
+      <div class="fwd small mine a" style="left:1130px;top:940px;width:400px" data-in="5.35" data-dur=".45" data-rot="-3" data-s=".5" data-ease="back" data-float="5" data-phase="4"><div class="fwd-text">₹5,000 for every citizen. Register now 👇</div><div class="fwd-meta">11:32 am</div></div>
+      <div class="fwd small a" style="left:640px;top:-30px;width:380px" data-in="5.6" data-dur=".45" data-rot="-2" data-s=".5" data-ease="back" data-float="5" data-phase="5"><div class="fwd-text">Cure diabetes in 7 days 🍋</div><div class="fwd-meta">11:40 am</div></div>
+    </div>
+    <div id="hook-scrim"></div>
+    <div class="a kicker" id="hook-over" data-in="7.0" data-dy="14">Forwarded many times</div>
+    <div class="a" id="hook-line" data-in="0" data-dy="0"><span>Which</span><span>ones</span><span>are</span><span class="mint">true?</span></div>
+  </section>
+
+  <!-- 2. title -->
+  <section class="scene" id="title">
+    <div class="lockup a" style="top:238px" data-in=".05" data-dy="0" data-s=".8" data-ease="back" data-dur=".7">
+      <svg class="logo" id="logo-a" width="210" height="210" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="9" fill="#0c3f40" stroke="rgba(140,229,203,.45)" stroke-width=".5"/>
+        <path class="l1" pathLength="1" d="M7.5 17.2l5.2 5.3L24 9.5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path class="l2" pathLength="1" d="M16.8 9.500H24v7.200" stroke="#8ce5cb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="lockup wordmark a" style="top:486px" data-in=".28" data-dy="40" data-blur="10">Forward Check</div>
+    <div class="lockup tagline a" style="top:670px" data-in="1.0" data-dy="24">Send it any forward. It checks the facts.</div>
+  </section>
+
+  <!-- 3. the web app, live -->
+  <section class="scene" id="web">
+    <div class="a kicker" style="left:70px;top:158px" data-in=".2" data-dy="16">Web app</div>
+    <div class="a steps" id="steps" data-in=".3" data-dy="0">
+      <div class="step"><div class="step-n"><div class="fill"></div><span>1</span></div><div class="step-t">Paste the forward</div><div class="step-s">Text, screenshot, voice note, PDF or link.</div></div>
+      <div class="step"><div class="step-n"><div class="fill"></div><span>2</span></div><div class="step-t">Claims pulled out</div><div class="step-s">Only what can actually be checked.</div></div>
+      <div class="step"><div class="step-n"><div class="fill"></div><span>3</span></div><div class="step-t">Checked live</div><div class="step-s">Official sources and fact-checkers, searched as you watch.</div></div>
+      <div class="step"><div class="step-n"><div class="fill"></div><span>4</span></div><div class="step-t">A verdict per claim</div><div class="step-s">
+        <span class="chip sm c-true rel" id="w-true"><i><svg viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></i>True</span><span class="chip sm c-old rel" id="w-old"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7.500V12l3 2"/></svg></i>Outdated</span><span class="chip sm c-false rel" id="w-false"><i><svg viewBox="0 0 24 24"><path d="M6.500 6.500l11 11M17.500 6.500l-11 11"/></svg></i>False</span></div></div>
+      <div class="step"><div class="step-n"><div class="fill"></div><span>5</span></div><div class="step-t">Evidence on tap</div><div class="step-s">Source, date, quote and link for every claim.</div></div>
+    </div>
+    <div class="a pill" style="left:70px;top:930px" data-in="1.9" data-dy="14"><svg viewBox="0 0 24 24"><path d="M12 2l2.400 7.200L22 12l-7.600 2.800L12 22l-2.400-7.200L2 12l7.600-2.800z"/></svg>Reasoning by Claude Opus 5.5</div>
+    <div class="a window" id="web-window" style="left:470px;top:118px;width:1390px" data-in=".1" data-dy="70" data-s=".93" data-dur=".8">
+      <div class="window-bar"><b></b><b></b><b></b><span>Forward Check<span class="dot"></span>web app</span></div>
+      <div class="screen" id="web-screen" style="width:1390px;height:825px"><div class="cam"><img alt=""><div class="ptr"></div></div></div>
+    </div>
+    <div class="a pill" id="web-speed" style="left:1490px;top:96px" data-in="2.5" data-out="8.75" data-dy="-14" data-dur=".4"><svg viewBox="0 0 24 24"><path d="M3 5l8 7-8 7zM13 5l8 7-8 7z"/></svg>Real check<span class="dot"></span>43 s played in 6 s</div>
+  </section>
+
+  <!-- 4. images -->
+  <section class="scene" id="image">
+    <div class="a kicker" style="left:110px;top:150px" data-in=".15" data-dy="16">Any format</div>
+    <div class="a h1" style="left:110px;top:196px;width:900px" data-in=".25" data-dy="34" data-blur="8">Images work too.</div>
+    <div class="a formats" style="left:110px;top:330px;width:900px" data-in=".55" data-dy="20">
+      <span class="fmt">Text</span><span class="fmt on">Screenshot</span><span class="fmt">Voice note</span><span class="fmt">PDF</span><span class="fmt">Link</span>
+    </div>
+    <div class="a poster" id="poster" style="left:170px;top:452px;width:560px" data-in=".8" data-rot="-4" data-s=".8" data-ease="back" data-dy="40"><img src="build/inputs/laptop-forward.jpg" alt=""></div>
+    <div class="a poster" id="poster-ghost" style="left:170px;top:452px;width:560px;opacity:0" data-in="99"><img src="build/inputs/laptop-forward.jpg" alt=""></div>
+    <div class="a credit" style="left:176px;top:942px" data-in="1.3" data-dy="10">A real viral poster, taken from PIB Fact Check’s debunk</div>
+    <div class="a stamp" id="stamp" style="left:300px;top:580px" data-in="99">FALSE</div>
+    <div class="a phone" style="left:1250px;top:66px" data-in=".35" data-dy="90" data-dur=".8" data-s=".94"><div class="screen" id="image-screen" style="width:424px;height:912px"><div class="cam"><img alt=""><div class="ptr"></div></div></div></div>
+    <div class="a pill" style="left:1082px;top:470px" data-in="3.5" data-out="5.3" data-dx="20" data-dy="0" data-dur=".4"><svg viewBox="0 0 24 24"><path d="M3 5l8 7-8 7zM13 5l8 7-8 7z"/></svg>34 s skipped</div>
+  </section>
+
+  <!-- 5. telegram -->
+  <section class="scene" id="telegram">
+    <div class="a kicker" style="left:110px;top:150px" data-in=".2" data-dy="16">Telegram bot</div>
+    <div class="a h1" style="left:110px;top:196px;width:720px" data-in=".4" data-dy="34" data-blur="8">Lives in<br>Telegram too.</div>
+    <div class="a handle" style="left:110px;top:428px" data-in="1.1" data-dy="18" data-s=".9" data-ease="back"><svg viewBox="0 0 24 24"><path d="M21.500 3.200L2.700 10.500c-.900.350-.880 1.600.030 1.900l4.700 1.500 1.800 5.700c.220.700 1.100.900 1.620.400l2.650-2.500 4.700 3.450c.600.440 1.460.110 1.620-.620L23 4.400c.180-.850-.660-1.540-1.500-1.200zM9.600 14.300l8.500-6.800-6.700 7.900-.300 3.300z"/></svg>@ForwarddCheck_bot</div>
+    <div class="a points" id="points" data-in="0" data-dy="0">
+      <div class="point" data-at="2.75"><i><svg viewBox="0 0 24 24"><path d="M14 5l6 6-6 6M20 11H9a5 5 0 0 0-5 5v3"/></svg></i><div>Forward any message</div></div>
+      <div class="point" data-at="4.3"><i><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.500 11a6.500 6.500 0 0 0 13 0M12 17.500V21"/></svg></i><div>…or just speak</div></div>
+      <div class="point" data-at="5.75"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></i><div>Answers in your language<small>हिन्दी<span class="dot"></span>मराठी<span class="dot"></span>English</small></div></div>
+      <div class="point" data-at="7.4"><i><svg viewBox="0 0 24 24"><path d="M4 9.500v5h3.500L12 18.500v-13L7.500 9.500zM16 9a4.200 4.200 0 0 1 0 6M18.700 6.500a8 8 0 0 1 0 11"/></svg></i><div>Reads the answer aloud</div></div>
+    </div>
+    <div class="a phone" style="left:880px;top:54px" data-in=".3" data-dy="90" data-dur=".8" data-s=".94"><div class="screen" id="tg-screen-a" style="width:424px;height:912px"><div class="cam"><img alt=""><div class="ptr"></div></div></div></div>
+    <div class="a phone" style="left:1384px;top:102px" data-in="4.45" data-dx="120" data-dy="0" data-dur=".7" data-s=".94"><div class="screen" id="tg-screen-b" style="width:424px;height:912px"><div class="cam"><img alt=""><div class="ptr"></div></div></div></div>
+  </section>
+
+  <!-- 6. the guardrail -->
+  <section class="scene" id="trust">
+    <div class="a kicker" style="left:0;top:118px;width:1920px;text-align:center" data-in=".1" data-dy="16">The guardrail</div>
+    <div class="a h1" style="left:0;top:166px;width:1920px;text-align:center" data-in=".2" data-dy="34" data-blur="8">No trusted source, no verdict.</div>
+    <div class="a card" style="left:170px;top:400px;width:430px;height:300px" data-in=".55" data-dy="40">
+      <h3>The model proposes</h3>
+      <span class="chip c-false rel" id="t-false"><i><svg viewBox="0 0 24 24"><path d="M6.500 6.500l11 11M17.500 6.500l-11 11"/></svg></i>False<span id="strike"></span></span>
+      <div style="font-size:24px;color:#bfe0d8;margin-top:22px;line-height:1.4">…but its only source is an unknown blog.</div>
+    </div>
+    <div class="a arrow" id="arrow-1" style="left:622px;top:548px;width:76px;opacity:1" data-in="99"></div>
+    <div class="a card" style="left:720px;top:400px;width:560px;height:300px" data-in=".9" data-dy="40">
+      <h3>Code checks every citation</h3>
+      <div class="check-row" data-at="1.15"><i><svg viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></i>The cited page was really opened</div>
+      <div class="check-row" data-at="1.45"><i class="no"><svg viewBox="0 0 24 24"><path d="M6.500 6.500l11 11M17.500 6.500l-11 11"/></svg></i>The source is on the trusted list</div>
+      <div class="check-row" data-at="1.75"><i class="no"><svg viewBox="0 0 24 24"><path d="M6.500 6.500l11 11M17.500 6.500l-11 11"/></svg></i>Trusted evidence backs the verdict</div>
+    </div>
+    <div class="a arrow" id="arrow-2" style="left:1302px;top:548px;width:76px;opacity:1" data-in="99"></div>
+    <div class="a card" style="left:1400px;top:400px;width:440px;height:300px" data-in="2.3" data-dy="40">
+      <h3>You see</h3>
+      <span class="chip c-unknown rel" id="t-unknown" style="font-size:27px"><i><svg viewBox="0 0 24 24"><path d="M9 9.200a3 3 0 1 1 4.300 2.700c-.900.500-1.300 1.100-1.300 2.100M12 17.500v.200"/></svg></i>Cannot be confirmed</span>
+      <div style="font-size:24px;color:#bfe0d8;margin-top:22px;line-height:1.4">An honest “we don’t know”.</div>
+    </div>
+    <div class="a" id="five" style="left:0;top:800px;width:1920px;display:flex;gap:18px;justify-content:center;opacity:1" data-in="0" data-dy="0">
+      <span class="chip c-true rel"><i><svg viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></i>True</span>
+      <span class="chip c-false rel"><i><svg viewBox="0 0 24 24"><path d="M6.500 6.500l11 11M17.500 6.500l-11 11"/></svg></i>False</span>
+      <span class="chip c-old rel"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7.500V12l3 2"/></svg></i>Outdated</span>
+      <span class="chip c-partly rel"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16" /></svg></i>Partly true</span>
+      <span class="chip c-unknown rel"><i><svg viewBox="0 0 24 24"><path d="M9 9.200a3 3 0 1 1 4.300 2.700c-.900.500-1.300 1.100-1.300 2.100M12 17.500v.200"/></svg></i>Cannot be confirmed</span>
+    </div>
+    <div class="a sub" style="left:0;top:896px;width:1920px;text-align:center;font-size:28px" data-in="3.5" data-dy="12">Five honest answers</div>
+  </section>
+
+  <!-- 7. numbers, then the sign-off -->
+  <section class="scene" id="end">
+    <div class="a stat" style="left:150px;top:330px" data-in=".2" data-out="3.25" data-dy="50"><b id="n-score">0</b><span>verdicts right on our<br>24-forward test set</span></div>
+    <div class="a stat" style="left:700px;top:330px" data-in=".5" data-out="3.3" data-dy="50"><b class="mint" id="n-sources">0</b><span>trusted source domains:<br>official, fact-checkers, news</span></div>
+    <div class="a stat" style="left:1250px;top:330px" data-in=".8" data-out="3.35" data-dy="50"><b id="n-lang">0</b><span>languages<br>English<span class="dot"></span>हिन्दी<span class="dot"></span>मराठी</span></div>
+    <div class="a note" style="left:0;top:800px;width:1920px;text-align:center" data-in="1.3" data-out="3.3" data-dy="10">The test set is small and written by us. It is a check of the pipeline, not real-world accuracy.</div>
+
+    <div class="lockup a" style="top:196px" data-in="3.55" data-dy="0" data-s=".8" data-ease="back" data-dur=".7">
+      <svg class="logo" id="logo-b" width="190" height="190" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="9" fill="#0c3f40" stroke="rgba(140,229,203,.45)" stroke-width=".5"/>
+        <path class="l1" pathLength="1" d="M7.5 17.2l5.2 5.3L24 9.5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path class="l2" pathLength="1" d="M16.8 9.500H24v7.200" stroke="#8ce5cb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="lockup wordmark a" style="top:420px" data-in="3.7" data-dy="40" data-blur="10">Forward Check</div>
+    <div class="lockup tagline a" style="top:602px" data-in="5.3" data-dy="24">Check before you forward.</div>
+    <div class="lockup a" style="top:726px" data-in="6.3" data-dy="18"><div class="tags"><span class="tag">Web app</span><span class="tag">Telegram bot</span><span class="tag">Reasoning by Claude Opus 5.5</span><span class="tag">SDG 4<span class="dot"></span>9<span class="dot"></span>16</span></div></div>
+  </section>
+
+  <div id="bug"><svg width="46" height="46" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="9" fill="#0c3f40" stroke="rgba(140,229,203,.45)" stroke-width=".6"/><path d="M7.5 17.2l5.2 5.3L24 9.5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.8 9.500H24v7.200" stroke="#8ce5cb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>Forward Check</div>
+  <div id="fade"></div>
+</div>
+
+<script>
+const $ = (s, root = document) => root.querySelector(s);
+const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const E = {
+  lin: t => t,
+  in: t => t * t * t,
+  out: t => 1 - Math.pow(1 - t, 3),
+  out5: t => 1 - Math.pow(1 - t, 5),
+  inOut: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  back: t => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2),
+};
+// Progress 0..1 of a move that starts at `start` and lasts `dur`.
+const p = (t, start, dur, ease = E.out) => ease(clamp((t - start) / dur));
+
+let pending = [];  // images still decoding for the frame being drawn
+
+/* ---------- screen recordings ---------- */
+class Footage {
+  // keys: [[scene time, recording time], ...]; cam: [[scene time, x, y, zoom], ...] in page pixels.
+  constructor(screen, name, { keys, cam, kind }) {
+    this.screen = $(screen); this.camEl = $(".cam", this.screen); this.img = $("img", this.screen); this.ptr = $(".ptr", this.screen);
+    this.name = name; this.keys = keys; this.cam = cam; this.kind = kind; this.shown = "";
+  }
+  async load() {
+    this.m = await (await fetch(`build/rec/${this.name}/manifest.json`)).json();
+    this.times = this.m.frames.map(f => f.t);
+    this.k = this.screen.clientWidth / this.m.width;
+    this.camEl.style.width = this.m.width + "px"; this.camEl.style.height = this.m.height + "px";
+    this.clicks = this.m.events.filter(e => e.kind !== "scroll").map(e => ({ ...e, at: this.sceneTime(e.t) })).filter(e => e.at !== null);
+    if (this.kind === "cursor") {
+      this.ptr.innerHTML = `<div class="ring"></div><svg class="cursor" viewBox="0 0 24 24"><path d="M4 2.500l15.500 9.200-6.800 1.500L16.800 21l-3 1.400-4-7.700L4.500 19.500z" fill="#14211f" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+    } else {
+      this.ptr.innerHTML = `<div class="ring" style="border-color:#fff"></div><div class="tapdot"></div>`;
+    }
+  }
+  recTime(local) {
+    const k = this.keys;
+    if (local <= k[0][0]) return k[0][1];
+    for (let i = k.length - 2; i >= 0; i--) {
+      if (local >= k[i][0]) return lerp(k[i][1], k[i + 1][1], clamp((local - k[i][0]) / Math.max(1e-6, k[i + 1][0] - k[i][0])));
+    }
+    return k[k.length - 1][1];
+  }
+  sceneTime(rec) {
+    const k = this.keys;
+    for (let i = 0; i < k.length - 1; i++) {
+      if (k[i + 1][0] > k[i][0] && rec >= k[i][1] && rec <= k[i + 1][1]) return lerp(k[i][0], k[i + 1][0], (rec - k[i][1]) / Math.max(1e-6, k[i + 1][1] - k[i][1]));
+    }
+    return null;
+  }
+  view(local) {
+    const c = this.cam;
+    if (!c) return [this.m.width / 2, this.m.height / 2, 1];
+    if (local <= c[0][0]) return c[0].slice(1);
+    for (let i = c.length - 2; i >= 0; i--) {
+      if (local >= c[i][0]) {
+        const k = E.inOut(clamp((local - c[i][0]) / (c[i + 1][0] - c[i][0])));
+        return [1, 2, 3].map(j => lerp(c[i][j], c[i + 1][j], k));
+      }
+    }
+    return c[c.length - 1].slice(1);
+  }
+  update(local) {
+    const rec = this.recTime(local);
+    let lo = 0, hi = this.times.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (this.times[mid] <= rec) lo = mid; else hi = mid - 1; }
+    const src = `build/rec/${this.name}/${this.m.frames[lo].f}`;
+    if (src !== this.shown) {
+      this.shown = src; this.img.src = src;
+      pending.push(this.img.decode().catch(() => {}));
+    }
+    let [fx, fy, z] = this.view(local);
+    const W = this.m.width, H = this.m.height;
+    fx = clamp(fx, W / (2 * z), W - W / (2 * z)); fy = clamp(fy, H / (2 * z), H - H / (2 * z));
+    this.camEl.style.transform = `translate(${(W / 2 - fx * z) * this.k}px, ${(H / 2 - fy * z) * this.k}px) scale(${z * this.k})`;
+    this.pointer(local, z);
+  }
+  pointer(local, z) {
+    const ring = $(".ring", this.ptr);
+    const last = this.clicks.filter(e => local >= e.at).pop();
+    const ringAt = last ? clamp((local - last.at) / .5) : 1;
+    if (this.kind === "cursor") {
+      let pos = { x: 1010, y: 520 };
+      for (const e of this.clicks) {
+        if (local >= e.at) { pos = e; continue; }
+        const k = p(local, e.at - .75, .75, E.inOut);
+        pos = { x: lerp(pos.x, e.x, k), y: lerp(pos.y, e.y, k) };
+        break;
+      }
+      if (last === this.clicks[this.clicks.length - 1]) {  // nothing left to click: get out of the way of the text
+        const k = p(local, last.at + .5, .9, E.inOut);
+        pos = { x: lerp(pos.x, 1212, k), y: lerp(pos.y, 470, k) };
+      }
+      const press = last && local - last.at < .16 ? .82 : 1;
+      this.ptr.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${1.25 / z})`;
+      $(".cursor", this.ptr).style.transform = `scale(${press})`;
+      const r = lerp(6, 34, E.out(ringAt));
+      Object.assign(ring.style, { left: -r + "px", top: -r + "px", width: 2 * r + "px", height: 2 * r + "px", opacity: last ? .8 * (1 - ringAt) : 0 });
+    } else {
+      const next = this.clicks.find(e => local < e.at);
+      const dot = $(".tapdot", this.ptr);
+      const arriving = next ? p(local, next.at - .32, .32) : 0;
+      const leaving = last ? 1 - clamp((local - last.at) / .3) : 0;
+      const target = arriving > 0 ? next : last;
+      if (!target) { dot.style.opacity = 0; ring.style.opacity = 0; return; }
+      this.ptr.style.transform = `translate(${target.x}px, ${target.y}px)`;
+      dot.style.opacity = arriving > 0 ? arriving : leaving;
+      dot.style.transform = `scale(${arriving > 0 ? lerp(1.5, .8, arriving) : lerp(1.05, .8, leaving)})`;
+      const r = lerp(22, 62, E.out(ringAt));
+      Object.assign(ring.style, { left: -r + "px", top: -r + "px", width: 2 * r + "px", height: 2 * r + "px", opacity: last && arriving === 0 ? .9 * (1 - ringAt) : 0 });
+    }
+  }
+}
+
+const footage = {
+  web: new Footage("#web-screen", "desktop", {
+    kind: "cursor",
+    keys: [[0, .5], [1.0, 1.95], [1.9, 3.0], [2.4, 3.6], [3.7, 11.2], [8.7, 46.3], [9.9, 48.9], [10.4, 49.9], [11.5, 51.85], [12.1, 52.9], [12.7, 54.0], [13.6, 56.4], [14.3, 57.5], [15.2, 59.9]],
+    cam: [[0, 640, 380, 1], [.5, 640, 380, 1], [1.5, 816, 507, 1.5], [2.6, 816, 507, 1.5], [3.5, 816, 450, 1.5], [8.6, 816, 450, 1.5], [9.3, 816, 330, 1.5], [11.5, 816, 330, 1.5], [12.2, 816, 420, 1.5], [13.6, 816, 420, 1.5], [14.3, 816, 400, 1.5]],
+  }),
+  image: new Footage("#image-screen", "phone", {
+    kind: "tap",
+    keys: [[0, .7], [1.2, 1.75], [2.0, 2.7], [2.8, 3.6], [4.3, 8.0], [4.3, 37.1], [5.2, 39.2], [5.7, 40.1], [6.2, 40.9]],
+  }),
+  tgA: new Footage("#tg-screen-a", "telegram", {
+    kind: "tap",
+    keys: [[0, .4], [1.2, 1.0], [1.9, 1.95], [2.5, 3.2], [2.8, 3.6], [3.2, 4.6], [4.4, 38.3], [4.6, 38.6], [5.4, 39.65], [6.0, 40.5], [7.6, 42.9], [8.4, 44.2], [11.6, 45.5]],
+  }),
+  tgB: new Footage("#tg-screen-b", "telegram", {
+    kind: "tap",
+    keys: [[0, 45.8], [4.6, 45.8], [5.0, 46.7], [5.2, 47.0], [6.4, 64.6], [6.6, 64.9], [6.9, 66.3], [8.0, 93.8], [8.2, 94.1], [8.6, 95.1], [9.1, 96.0], [9.3, 98.4], [9.7, 99.8], [9.9, 102.1], [10.2, 102.6], [10.6, 112.6], [10.9, 113.5], [11.2, 114.3], [11.6, 116.0]],
+  }),
+};
+
+/* ---------- the generic entrance / exit of every .a element ---------- */
+function place(el, local, T) {
+  const d = el.dataset;
+  const tin = +(d.in ?? 0), dur = +(d.dur ?? .6), tout = d.out === undefined ? Infinity : +d.out;
+  const k = E[d.ease || "out"](clamp((local - tin) / dur));
+  const gone = tout === Infinity ? 0 : E.in(clamp((local - tout) / .35));
+  const shown = clamp((local - tin) / (dur * .55)) * (1 - gone);
+  const float = d.float ? +d.float * Math.sin(T * .9 + +(d.phase || 0)) : 0;
+  const dx = +(d.dx ?? 0) * (1 - k), dy = +(d.dy ?? 28) * (1 - k) - 16 * gone + float;
+  const scale = lerp(+(d.s ?? 1), 1, k) * (1 - .04 * gone);
+  el.style.opacity = shown;
+  el.style.transform = `translate(${dx}px, ${dy}px) rotate(${+(d.rot || 0)}deg) scale(${scale})`;
+  if (d.blur) el.style.filter = `blur(${+d.blur * (1 - clamp((local - tin) / dur))}px)`;
+}
+
+function drawLogo(svg, local, start) {
+  $(".l1", svg).style.strokeDashoffset = 1 - p(local, start, .5, E.inOut);
+  $(".l2", svg).style.strokeDashoffset = 1 - p(local, start + .35, .4, E.inOut);
+}
+
+/* ---------- what each scene does beyond entrances ---------- */
+const scenes = {
+  hook(t) {
+    const dim = p(t, 6.9, .7, E.inOut);
+    const wrap = $("#fwd-wrap");
+    wrap.style.opacity = lerp(1, .34, dim);
+    wrap.style.filter = dim > 0 ? `blur(${7 * dim}px)` : "none";
+    wrap.style.transform = `scale(${lerp(1, .955, dim) + .012 * clamp(t / 8.85)})`;
+    $("#hook-scrim").style.opacity = dim;
+    $$("#hook-line span").forEach((word, i) => {
+      const at = [7.42, 7.72, 7.98, 8.14][i];
+      const k = p(t, at, .5, E.back);
+      word.style.opacity = clamp((t - at) / .22);
+      word.style.transform = `translateY(${70 * (1 - k)}px) scale(${lerp(.86, 1, k)})`;
+    });
+  },
+  title(t) { drawLogo($("#logo-a"), t, .15); },
+  web(t) {
+    footage.web.update(t);
+    const starts = [0, 3.6, 5.0, 8.7, 12.7, 99];
+    $$("#steps .step").forEach((step, i) => {
+      const on = p(t, starts[i], .45) * (1 - p(t, starts[i + 1], .45));
+      const done = p(t, starts[i + 1], .45);
+      const seen = Math.max(on, done);
+      $(".step-t", step).style.opacity = lerp(.42, 1, on) - .25 * done * (1 - on);
+      $(".step-t", step).style.transform = `translateX(${4 * on}px)`;
+      const sub = $(".step-s", step);
+      sub.style.opacity = on; sub.style.maxHeight = 150 * on + "px"; sub.style.marginTop = 4 * on + "px";
+      $(".fill", step).style.opacity = Math.max(on, .0) ; $(".step-n span", step).style.color = on > .5 ? "#05211f" : "";
+      $(".step-n", step).style.opacity = lerp(.5, 1, seen);
+    });
+    [["#w-true", 9.05], ["#w-old", 10.5], ["#w-false", 11.55]].forEach(([sel, at]) => {
+      const k = p(t, at, .45, E.back);
+      $(sel).style.opacity = clamp((t - at) / .2); $(sel).style.transform = `scale(${lerp(.5, 1, k)})`;
+    });
+  },
+  image(t) {
+    footage.image.update(t);
+    // A copy of the poster flies into the phone as it is attached.
+    const fly = p(t, 1.15, .7, E.inOut), ghost = $("#poster-ghost");
+    ghost.style.opacity = t > 1.15 && t < 1.95 ? 1 - p(t, 1.6, .3, E.in) : 0;
+    ghost.style.transform = `translate(${lerp(0, 1000, fly)}px, ${lerp(0, 250, fly) - 120 * Math.sin(Math.PI * fly)}px) rotate(${lerp(-4, 6, fly)}deg) scale(${lerp(1, .16, fly)})`;
+    const hit = p(t, 4.46, .42, E.back), stamp = $("#stamp");
+    stamp.style.opacity = clamp((t - 4.46) / .12);
+    stamp.style.transform = `rotate(-9deg) scale(${lerp(2.3, 1, hit)})`;
+    $("#poster img").style.filter = `saturate(${lerp(1, .45, p(t, 4.46, .5))}) brightness(${lerp(1, .92, p(t, 4.46, .5))})`;
+  },
+  telegram(t) {
+    footage.tgA.update(t); footage.tgB.update(t);
+    $$("#points .point").forEach(point => {
+      const at = +point.dataset.at, k = p(t, at, .55);
+      point.style.opacity = clamp((t - at) / .3); point.style.transform = `translateX(${-36 * (1 - k)}px)`;
+    });
+  },
+  trust(t) {
+    $$("#trust .check-row").forEach(row => {
+      const at = +row.dataset.at, k = p(t, at, .45, E.back);
+      row.style.opacity = clamp((t - at) / .2); row.style.transform = `translateX(${-24 * (1 - p(t, at, .45))}px)`;
+      $("i", row).style.transform = `scale(${lerp(.3, 1, k)})`;
+    });
+    $("#arrow-1").style.transform = `scaleX(${p(t, .8, .35)})`; $("#arrow-1").style.opacity = clamp((t - .8) / .1);
+    $("#arrow-2").style.transform = `scaleX(${p(t, 2.15, .35)})`; $("#arrow-2").style.opacity = clamp((t - 2.15) / .1);
+    $("#strike").style.transform = `scaleX(${p(t, 2.3, .35, E.inOut)})`;
+    $("#t-false").style.filter = `grayscale(${p(t, 2.3, .4)}) brightness(${lerp(1, .82, p(t, 2.3, .4))})`;
+    const pop = p(t, 2.6, .5, E.back);
+    $("#t-unknown").style.opacity = clamp((t - 2.6) / .15); $("#t-unknown").style.transform = `scale(${lerp(.5, 1, pop)})`;
+    $$("#five .chip").forEach((chip, i) => {
+      const at = 3.0 + i * .09, k = p(t, at, .5, E.back);
+      chip.style.opacity = clamp((t - at) / .2); chip.style.transform = `translateY(${40 * (1 - k)}px) scale(${lerp(.7, 1, k)})`;
+    });
+  },
+  end(t) {
+    $("#n-score").innerHTML = `${Math.round(24 * p(t, .3, 1.1, E.out5))}<span class="slash">/</span>24`;
+    $("#n-sources").textContent = Math.round(60 * p(t, .6, 1.1, E.out5));
+    $("#n-lang").textContent = Math.round(3 * p(t, .9, .8, E.out5));
+    drawLogo($("#logo-b"), t, 3.65);
+  },
+};
+
+let timeline = null;
+
+// Draws the frame for time T (seconds). Resolves when every image in it has decoded.
+window.renderAt = async function (T) {
+  pending = [];
+  $("#dots").style.transform = `translate(${-T * 1.1}px, ${-T * .7}px)`;
+  $("#g1").style.transform = `translate(${40 * Math.sin(T * .12)}px, ${30 * Math.cos(T * .1)}px)`;
+  $("#g2").style.transform = `translate(${-50 * Math.sin(T * .09)}px, ${-24 * Math.cos(T * .13)}px)`;
+  for (const [name, [start, end]] of Object.entries(timeline.scenes)) {
+    const el = $("#" + name), local = T - start;
+    const visible = T >= start && T < end;
+    el.style.display = visible ? "block" : "none";
+    if (!visible) continue;
+    const leave = E.in(clamp((T - (end - .28)) / .28));
+    el.style.opacity = (start === 0 ? 1 : clamp(local / .22)) * (1 - leave);
+    el.style.transform = `scale(${1 + .035 * leave})`;
+    for (const a of $$(".a", el)) place(a, local, T);
+    scenes[name](local);
+  }
+  const [bugIn, bugOut] = [timeline.scenes.web[0] + .2, timeline.scenes.trust[1] - .3];
+  $("#bug").style.opacity = clamp((T - bugIn) / .4) * (1 - clamp((T - bugOut) / .3));
+  $("#fade").style.opacity = clamp(T / .35) < 1 ? 1 - clamp(T / .35) : E.inOut(clamp((T - (timeline.duration - .7)) / .7));
+  await Promise.all(pending);
+};
+
+(async function init() {
+  const wave = $("#hook-wave");
+  for (let i = 0; i < 34; i++) wave.insertAdjacentHTML("beforeend", `<i style="height:${Math.round(10 + 40 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * .45)))}px"></i>`);
+  timeline = await (await fetch("timeline.json")).json();
+  await Promise.all(Object.values(footage).map(f => f.load()));
+  await document.fonts.load('800 80px "Anek Devanagari"', "Forward हिन्दी");
+  await document.fonts.load('400 30px "Anek Devanagari"', "Forward हिन्दी");
+  await document.fonts.ready;
+  await Promise.all($$("img[src]").map(img => img.decode().catch(() => {})));
+  window.ready = true;
+  if (!location.search.includes("render")) {  // opened by hand: just play it
+    const scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+    Object.assign($("#stage").style, { transform: `scale(${scale})`, transformOrigin: "0 0" });
+    const began = performance.now();
+    const tick = async () => { await renderAt(((performance.now() - began) / 1000) % timeline.duration); requestAnimationFrame(tick); };
+    tick();
+  }
+})();
+</script>
+</body>
+</html>

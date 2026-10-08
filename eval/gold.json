@@ -1,0 +1,30 @@
+[
+  {"id": "true-2000-withdrawn", "gold": "VERIFIED", "text": "RBI has withdrawn the 2000 rupee note from circulation, but the notes are still legal tender."},
+  {"id": "true-dengue-no-cure", "gold": "VERIFIED", "text": "WHO says there is no specific medicine that cures dengue. Doctors only treat the symptoms."},
+  {"id": "true-112", "gold": "VERIFIED", "text": "In India you can dial 112 as a single emergency number for police, fire and ambulance."},
+  {"id": "true-chandrayaan", "gold": "VERIFIED", "text": "India's Chandrayaan-3 landed near the south pole of the Moon on 23 August 2023."},
+  {"id": "true-polio-hi", "gold": "VERIFIED", "text": "विश्व स्वास्थ्य संगठन ने 2014 में भारत को पोलियो मुक्त देश घोषित किया था।"},
+
+  {"id": "false-5g-corona", "gold": "FALSE", "text": "Scientists have proved that 5G mobile towers spread the coronavirus. Switch off your phone at night!"},
+  {"id": "false-unesco-anthem", "gold": "FALSE", "text": "Proud moment! UNESCO has declared India's national anthem Jana Gana Mana the best national anthem in the world."},
+  {"id": "false-laptop-hi", "gold": "FALSE", "text": "🔥 बड़ी खुशखबरी 🔥 प्रधानमंत्री फ्री लैपटॉप योजना 2026 के तहत सरकार सभी छात्रों को मुफ्त लैपटॉप दे रही है। 10वीं पास सभी छात्र आवेदन कर सकते हैं। अभी रजिस्टर करें: http://pm-laptop-yojana.xyz आखिरी तारीख कल है, जल्दी करें और सभी ग्रुप में भेजें 🙏"},
+  {"id": "false-darkness", "gold": "FALSE", "text": "NASA has confirmed that the Earth will go completely dark for 6 days in December 2026 because of a solar storm."},
+  {"id": "false-whatsapp-fee", "gold": "FALSE", "text": "WhatsApp will start charging money from Saturday morning. Forward this message to 10 people and your account will stay free."},
+  {"id": "false-hotwater-mr", "gold": "FALSE", "text": "डॉक्टरांचा सल्ला: दर 15 मिनिटांनी गरम पाणी प्यायल्याने कोरोना विषाणू घशातच मरतो आणि फुफ्फुसांपर्यंत पोहोचत नाही. हा संदेश सर्वांना पाठवा."},
+
+  {"id": "old-2000-exchange", "gold": "OUTDATED", "accept": ["FALSE"], "text": "You can exchange your 2000 rupee notes at any bank branch till 30 September. Hurry up!"},
+  {"id": "old-pan-aadhaar", "gold": "OUTDATED", "accept": ["FALSE"], "text": "Important: the last date to link your PAN card with Aadhaar is 31 March 2022."},
+  {"id": "old-trains-lockdown", "gold": "OUTDATED", "text": "Because of the lockdown, Indian Railways has cancelled all passenger trains till 3 May."},
+  {"id": "old-demonetisation", "gold": "OUTDATED", "accept": ["FALSE"], "text": "Old 500 and 1000 rupee notes can be deposited in your bank account till 30 December. Do it soon."},
+  {"id": "old-2000-exchange-hi", "gold": "OUTDATED", "accept": ["FALSE"], "text": "2000 रुपये के नोट 30 सितंबर तक किसी भी बैंक शाखा में बदले जा सकते हैं। जल्दी करें।"},
+
+  {"id": "partly-2000-tender", "gold": "PARTLY_SUPPORTED", "text": "RBI has withdrawn the 2000 rupee note from circulation. The notes are no longer legal tender and are now worthless."},
+  {"id": "partly-chandrayaan-first", "gold": "PARTLY_SUPPORTED", "accept": ["FALSE"], "text": "Chandrayaan-3 landed on the Moon on 23 August 2023, making India the first country ever to land on the Moon."},
+  {"id": "partly-ayushman", "gold": "PARTLY_SUPPORTED", "accept": ["FALSE"], "text": "Under Ayushman Bharat, every family in India gets free hospital treatment of up to 10 lakh rupees a year."},
+  {"id": "partly-who-pandemic", "gold": "PARTLY_SUPPORTED", "text": "WHO declared COVID-19 a pandemic on 11 March 2020. WHO also announced that the virus would completely disappear by the end of 2020."},
+
+  {"id": "unk-milk-snake", "gold": "UNVERIFIABLE", "text": "My neighbour's cousin in Nagpur found a small snake inside a sealed milk packet yesterday morning."},
+  {"id": "unk-jamun-study", "gold": "UNVERIFIABLE", "accept": ["FALSE"], "text": "A secret study by a laboratory in Germany found that chewing jamun leaves at midnight improves memory by 40 percent."},
+  {"id": "unk-water-cut", "gold": "UNVERIFIABLE", "text": "Tomorrow from 3 pm there will be no water supply in ward 12 of Shanti Nagar colony. Fill your tanks."},
+  {"id": "unk-lottery", "gold": "UNVERIFIABLE", "text": "A shopkeeper in our town won a 1 crore rupee lottery last week and gave all of it to the temple."}
+]
